@@ -30,13 +30,13 @@ import { createQdrantService } from "../../src/services/vector-db.js";
 const mocks = qdrantMocks;
 
 const env: Env = {
-  NODE_ENV: "test",
   PORT: 3000,
   DATABASE_URL: "postgresql://test:test@127.0.0.1:5432/test",
   GEMINI_API_KEY: "test-gemini-key",
   EMBEDDING_MODEL: "gemini-embedding-2-preview",
   EMBEDDING_DIM: 3072,
-  QDRANT_HOST: "localhost:6333",
+  QDRANT_HOST: "localhost",
+  QDRANT_PORT: 6333,
   QDRANT_API_KEY: undefined,
   QDRANT_COLLECTION: "images",
   S3_ENDPOINT: "http://127.0.0.1:9000",
