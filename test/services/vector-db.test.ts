@@ -21,7 +21,9 @@ vi.mock("@qdrant/js-client-rest", () => {
     search: vi.fn(),
   };
   return {
-    QdrantClient: vi.fn(() => qdrantMocks),
+    QdrantClient: vi.fn(function QdrantClientMock() {
+      return qdrantMocks;
+    }),
   };
 });
 
