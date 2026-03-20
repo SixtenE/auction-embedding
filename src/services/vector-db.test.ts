@@ -17,7 +17,6 @@ const env: Env = {
   S3_ACCESS_KEY_ID: "test",
   S3_SECRET_ACCESS_KEY: "test",
   S3_BUCKET: "test-bucket",
-  S3_PUBLIC_BASE_URL: "http://127.0.0.1:9000/test-bucket",
   S3_PRESIGN_EXPIRES_SECONDS: 3600,
   MAX_UPLOAD_BYTES: 10 * 1024 * 1024,
   DEFAULT_TOP_K: 10,

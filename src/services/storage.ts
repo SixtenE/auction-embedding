@@ -20,8 +20,8 @@ export type StorageService = {
 };
 
 function publicUrlForKey(env: Env, key: string): string {
-  const base = env.S3_PUBLIC_BASE_URL.replace(/\/$/, "");
-  return `${base}/${key}`;
+  const base = env.S3_ENDPOINT.replace(/\/$/, "");
+  return `${base}/${env.S3_BUCKET}/${key}`;
 }
 
 export function createStorageService(env: Env): StorageService {

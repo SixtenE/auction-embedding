@@ -122,7 +122,7 @@ curl -s -X POST http://localhost:3000/images/<uuid>/reindex
 
 - **Similarity**: Results use cosine similarity from Qdrant (`distance: Cosine`), returned as `score`.
 - **Limits**: Max upload size `MAX_UPLOAD_BYTES` (default 10 MB). Accepted types: JPEG, PNG, WebP, HEIC/HEIF (MIME + magic-byte check). **HEIC** and **WebP** uploads are decoded and stored as **PNG** (Gemini image embeddings only allow PNG/JPEG; WebP is normalized before embed). HEIC needs a **sharp/libvips build with libheif** (common on macOS; on Linux you may need extra packages such as `libheif` / `vips` with HEIF enabled).
-- **Image URLs**: JSON responses use **presigned GET URLs** so private buckets work. TTL is `S3_PRESIGN_EXPIRES_SECONDS` (60–604800s, default 3600). `S3_PUBLIC_BASE_URL` is still stored on rows as a stable prefix reference.
+- **Image URLs**: JSON responses use **presigned GET URLs** so private buckets work. TTL is `S3_PRESIGN_EXPIRES_SECONDS` (60–604800s, default 3600). `public_url` on rows is a logical path-style reference built from `S3_ENDPOINT`, `S3_BUCKET`, and the object key.
 
 ## Project layout
 

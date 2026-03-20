@@ -21,7 +21,6 @@ const envSchema = z.object({
   S3_ACCESS_KEY_ID: z.string().min(1),
   S3_SECRET_ACCESS_KEY: z.string().min(1),
   S3_BUCKET: z.string().min(1),
-  S3_PUBLIC_BASE_URL: z.string().url(),
   S3_PRESIGN_EXPIRES_SECONDS: z.coerce.number().min(60).max(604800).default(3600),
   MAX_UPLOAD_BYTES: z.coerce.number().default(10 * 1024 * 1024),
   DEFAULT_TOP_K: z.coerce.number().default(10),
