@@ -152,18 +152,27 @@ describe("createImageMetadataService", () => {
   });
 
   it("deleteById removes vector and row; storage delete failure is swallowed", async () => {
-    dbBundle.state.selectRows = [{ id: "img-3", storageKey: "images/key.png" }];
-    storage.delete.mockRejectedValueOnce(new Error("s3 down"));
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      dbBundle.state.selectRows = [{ id: "img-3", storageKey: "images/key.png" }];
+      storage.delete.mockRejectedValueOnce(new Error("s3 down"));
 
-    const svc = createImageMetadataService(env, dbBundle.db as any, storage, embeddings, vectorDb);
+      const svc = createImageMetadataService(env, dbBundle.db as any, storage, embeddings, vectorDb);
 
-    await expect(svc.deleteById("img-3")).resolves.toBeUndefined();
-    expect(vectorDb.deleteImageVector).toHaveBeenCalledWith("img-3");
-    expect(dbBundle.db.delete).toHaveBeenCalledTimes(1);
-    expect(storage.delete).toHaveBeenCalledWith("images/key.png");
-    const deleteOrder = dbBundle.db.delete.mock.invocationCallOrder[0];
-    const vectorDeleteOrder = vectorDb.deleteImageVector.mock.invocationCallOrder[0];
-    expect(deleteOrder).toBeLessThan(vectorDeleteOrder);
+      await expect(svc.deleteById("img-3")).resolves.toBeUndefined();
+      expect(vectorDb.deleteImageVector).toHaveBeenCalledWith("img-3");
+      expect(dbBundle.db.delete).toHaveBeenCalledTimes(1);
+      expect(storage.delete).toHaveBeenCalledWith("images/key.png");
+      const deleteOrder = dbBundle.db.delete.mock.invocationCallOrder[0];
+      const vectorDeleteOrder = vectorDb.deleteImageVector.mock.invocationCallOrder[0];
+      expect(deleteOrder).toBeLessThan(vectorDeleteOrder);
+      expect(consoleError).toHaveBeenCalledWith(
+        "Storage delete after DB remove failed",
+        expect.objectContaining({ message: "s3 down" }),
+      );
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it("deleteById throws 404 when image does not exist", async () => {
