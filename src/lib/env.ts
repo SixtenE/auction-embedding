@@ -12,7 +12,8 @@ const envSchema = z.object({
     .refine((n) => n === EMBEDDING_DIMENSIONS, {
       message: `EMBEDDING_DIM must be ${EMBEDDING_DIMENSIONS} to match the configured embedding size`,
     }),
-  QDRANT_URL: z.string().url().default("http://localhost:6333"),
+  QDRANT_HOST: z.string().min(1).default("localhost"),
+  QDRANT_PORT: z.coerce.number().min(1).default(6333),
   QDRANT_API_KEY: z.string().optional(),
   QDRANT_COLLECTION: z.string().min(1).default("images"),
   S3_ENDPOINT: z.string().url(),

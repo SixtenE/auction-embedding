@@ -19,6 +19,7 @@
     "@aws-sdk/client-s3": "^3.1013.0",
     "@aws-sdk/s3-request-presigner": "^3.1013.0",
     "@google/genai": "^1.46.0",
+    "@qdrant/js-client-rest": "^1.17.0",
     "drizzle-orm": "^0.45.1",
     "hono": "^4.12.8",
     "pg": "^8.20.0",

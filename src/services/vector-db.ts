@@ -1,3 +1,4 @@
+import { QdrantClient } from "@qdrant/js-client-rest";
 import { and, eq, inArray, ne } from "drizzle-orm";
 import type { Env } from "../lib/env.js";
 import type { Database } from "../lib/db.js";
@@ -30,55 +31,36 @@ export type QdrantService = {
   ): Promise<QdrantSearchHit[]>;
 };
 
-async function parseQdrantResult<T>(res: Response, operation: string): Promise<T> {
-  if (!res.ok) {
-    const body = await res.text();
-    throw new AppError(`Qdrant ${operation} failed: ${res.status} ${body}`, 502, "VECTOR_DB_ERROR");
-  }
-  const json = (await res.json()) as { result?: T };
-  if (json.result === undefined) {
-    throw new AppError(`Qdrant ${operation} returned invalid payload`, 502, "VECTOR_DB_ERROR");
-  }
-  return json.result;
+function qdrantToAppError(err: unknown, operation: string): never {
+  const message = err instanceof Error ? err.message : String(err);
+  throw new AppError(`Qdrant ${operation} failed: ${message}`, 502, "VECTOR_DB_ERROR");
 }
 
 export function createQdrantService(env: Env): QdrantService {
-  const baseUrl = env.QDRANT_URL.replace(/\/+$/, "");
   const collection = env.QDRANT_COLLECTION;
-  const defaultHeaders: Record<string, string> = {
-    "Content-Type": "application/json",
-  };
-  if (env.QDRANT_API_KEY) {
-    defaultHeaders.api_key = env.QDRANT_API_KEY;
-  }
+
+  const client = new QdrantClient({
+    host: env.QDRANT_HOST,
+    port: env.QDRANT_PORT,
+    apiKey: env.QDRANT_API_KEY,
+    checkCompatibility: false,
+  });
 
   let ensurePromise: Promise<void> | null = null;
   function ensureCollection() {
     if (ensurePromise) return ensurePromise;
     ensurePromise = (async () => {
-      const existsRes = await fetch(`${baseUrl}/collections/${collection}`, {
-        method: "GET",
-        headers: defaultHeaders,
-      });
-      if (existsRes.ok) return;
-      if (existsRes.status !== 404) {
-        const body = await existsRes.text();
-        throw new AppError(
-          `Qdrant collection check failed: ${existsRes.status} ${body}`,
-          502,
-          "VECTOR_DB_ERROR",
-        );
-      }
-
-      const res = await fetch(`${baseUrl}/collections/${collection}`, {
-        method: "PUT",
-        headers: defaultHeaders,
-        body: JSON.stringify({
+      const { exists } = await client.collectionExists(collection);
+      if (exists) return;
+      try {
+        await client.createCollection(collection, {
           vectors: { size: env.EMBEDDING_DIM, distance: "Cosine" },
-        }),
-      });
-      if (res.status === 409) return;
-      await parseQdrantResult(res, "collection create");
+        });
+      } catch (err) {
+        const { exists: nowExists } = await client.collectionExists(collection);
+        if (nowExists) return;
+        qdrantToAppError(err, "collection create");
+      }
     })();
     ensurePromise = ensurePromise.catch((error) => {
       ensurePromise = null;
@@ -90,44 +72,34 @@ export function createQdrantService(env: Env): QdrantService {
   return {
     async upsertImageVector(id, vector) {
       await ensureCollection();
-      const res = await fetch(`${baseUrl}/collections/${collection}/points`, {
-        method: "PUT",
-        headers: defaultHeaders,
-        body: JSON.stringify({
+      try {
+        await client.upsert(collection, {
           points: [{ id, vector, payload: { imageId: id } }],
-        }),
-      });
-      await parseQdrantResult(res, "point upsert");
+        });
+      } catch (err) {
+        qdrantToAppError(err, "point upsert");
+      }
     },
 
     async deleteImageVector(id) {
       await ensureCollection();
-      const res = await fetch(`${baseUrl}/collections/${collection}/points/delete`, {
-        method: "POST",
-        headers: defaultHeaders,
-        body: JSON.stringify({
-          points: [id],
-        }),
-      });
-      await parseQdrantResult(res, "point delete");
+      try {
+        await client.delete(collection, { points: [id] });
+      } catch (err) {
+        qdrantToAppError(err, "point delete");
+      }
     },
 
     async searchSimilar(queryVector, topK, excludeId) {
       await ensureCollection();
-      const res = await fetch(`${baseUrl}/collections/${collection}/points/search`, {
-        method: "POST",
-        headers: defaultHeaders,
-        body: JSON.stringify({
+      const result = await client
+        .search(collection, {
           vector: queryVector,
           limit: topK,
           with_payload: false,
           with_vector: false,
-        }),
-      });
-      const result = await parseQdrantResult<Array<{ id: string | number; score: number }>>(
-        res,
-        "search",
-      );
+        })
+        .catch((err) => qdrantToAppError(err, "search"));
 
       return result
         .map((hit) => ({ id: String(hit.id), score: hit.score }))

@@ -41,7 +41,7 @@ Hono API: upload images to S3-compatible storage, embed with **Gemini Embedding 
    bun run db:migrate
    ```
 
-   Ensure `DATABASE_URL` points at Postgres and `QDRANT_URL` points at Qdrant (see `.env.example`).
+   Ensure `DATABASE_URL` points at Postgres and `QDRANT_HOST` points at Qdrant (see `.env.example`).
 
 5. **Run the API**
 
