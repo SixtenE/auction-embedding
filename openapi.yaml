@@ -1,0 +1,417 @@
+openapi: 3.0.3
+info:
+  title: auction-embedding API
+  description: |
+    Upload images to S3-compatible storage, embed with Gemini, store vectors in PostgreSQL + pgvector, and search by image similarity.
+
+    **Multipart uploads:** use form field `image` (required file). Optional fields are strings (`metadata` as JSON text, `topK` as decimal digits).
+
+    **Errors:** Validation failures (e.g. invalid UUID in path) return `400` with `{ "error": "Validation error", "details": … }`. Application errors return `{ "error": string, "code"?: string }` with an appropriate status. Unhandled errors return `500` with `{ "error": "Internal Server Error" }`.
+
+    **Limits:** Max body size is `MAX_UPLOAD_BYTES` (default 10 MB). Search `topK` is 1–100; if omitted, the server uses `DEFAULT_TOP_K` from the environment (often 10).
+
+    **Similarity:** Match `score` is approximately cosine similarity (1 − cosine distance) for indexed vectors.
+
+    This spec assumes the default dev server base URL; set `PORT` in the environment if different.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3000
+    description: Local default (see `PORT` in `.env`)
+
+tags:
+  - name: Health
+  - name: Images
+  - name: Search
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Liveness / readiness probe
+      operationId: getHealth
+      responses:
+        '200':
+          description: Service is up
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /images:
+    post:
+      tags: [Images]
+      summary: Upload and index an image
+      description: |
+        Stores the file, optionally merges JSON `metadata` into `tags`, computes embedding when processing completes.
+
+        Allowed image types (declared MIME must match magic bytes when not HEIC rules): JPEG, PNG, WebP, HEIC/HEIF. HEIC is decoded and stored as PNG.
+      operationId: createImage
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - image
+              properties:
+                image:
+                  type: string
+                  format: binary
+                  description: Image file (JPEG, PNG, WebP, HEIC/HEIF)
+                metadata:
+                  type: string
+                  description: Optional JSON object serialized as a string (stored as tags)
+            encoding:
+              image:
+                contentType: application/octet-stream, image/jpeg, image/png, image/webp, image/heic, image/heif
+      responses:
+        '200':
+          description: Image accepted; `status` reflects pipeline state (e.g. `indexed` when done)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageUploadResponse'
+        '400':
+          description: Missing file, bad metadata JSON, unsupported type, MIME mismatch, or invalid image
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppError'
+              examples:
+                missingFile:
+                  value: { error: Image is required, code: MISSING_FILE }
+                badMetadata:
+                  value: { error: Invalid metadata JSON, code: BAD_METADATA }
+        '413':
+          description: File exceeds `MAX_UPLOAD_BYTES`
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppError'
+              example:
+                error: File too large
+                code: FILE_TOO_LARGE
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /images/{id}:
+    get:
+      tags: [Images]
+      summary: Get image metadata and presigned URL
+      operationId: getImageById
+      parameters:
+        - $ref: '#/components/parameters/ImageId'
+      responses:
+        '200':
+          description: Full record with short-lived presigned GET URL for the object
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImagePublic'
+        '400':
+          $ref: '#/components/responses/ZodValidationError'
+        '404':
+          description: No image with this id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppError'
+              example:
+                error: Image not found
+                code: NOT_FOUND
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags: [Images]
+      summary: Delete an image
+      description: Removes the database row and associated processing (implementation-defined cleanup of storage).
+      operationId: deleteImage
+      parameters:
+        - $ref: '#/components/parameters/ImageId'
+      responses:
+        '204':
+          description: Deleted successfully (no body)
+        '400':
+          $ref: '#/components/responses/ZodValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /images/{id}/reindex:
+    post:
+      tags: [Images]
+      summary: Re-embed from stored object
+      description: Re-runs embedding/indexing for an existing row using the configured model and dimensions.
+      operationId: reindexImage
+      parameters:
+        - $ref: '#/components/parameters/ImageId'
+      responses:
+        '200':
+          description: Same shape as upload response after reindex
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageUploadResponse'
+        '400':
+          $ref: '#/components/responses/ZodValidationError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /search/image:
+    post:
+      tags: [Search]
+      summary: Similarity search by query image
+      description: |
+        Embeds the uploaded query image and returns the nearest indexed neighbors by pgvector cosine distance.
+      operationId: searchByImage
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - image
+              properties:
+                image:
+                  type: string
+                  format: binary
+                topK:
+                  type: string
+                  description: Number of results (integer as string, 1–100). Omit for server default.
+                  example: '10'
+            encoding:
+              image:
+                contentType: application/octet-stream, image/jpeg, image/png, image/webp, image/heic, image/heif
+      responses:
+        '200':
+          description: Ranked matches with presigned URLs and light metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ImageSearchResponse'
+        '400':
+          description: Missing file, bad topK, or image validation error
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/AppError'
+                  - $ref: '#/components/schemas/ZodErrorBody'
+              examples:
+                badTopK:
+                  value: { error: topK must be between 1 and 100, code: BAD_TOPK }
+                missingFile:
+                  value: { error: Image is required, code: MISSING_FILE }
+        '413':
+          description: Query file too large
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  parameters:
+    ImageId:
+      name: id
+      in: path
+      required: true
+      description: Image UUID
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    InternalError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [error]
+            properties:
+              error:
+                type: string
+                example: Internal Server Error
+
+    ZodValidationError:
+      description: Request failed schema validation (e.g. path `id` is not a UUID)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ZodErrorBody'
+
+  schemas:
+    HealthResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+          example: true
+
+    AppError:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+          description: Machine-readable code when present (e.g. `MISSING_FILE`, `NOT_FOUND`, `BAD_TOPK`)
+
+    ZodErrorBody:
+      type: object
+      required: [error, details]
+      properties:
+        error:
+          type: string
+          example: Validation error
+        details:
+          description: Zod flattened field errors and form errors
+          type: object
+          additionalProperties: true
+
+    ImageStatus:
+      type: string
+      enum:
+        - uploaded
+        - embedding
+        - indexed
+        - failed
+
+    ImageUploadResponse:
+      type: object
+      description: |
+        Upload and reindex handlers always serialize `width` and `height` when present in the model; values may be JSON `null` when dimensions are unknown.
+      required:
+        - id
+        - status
+        - url
+        - embeddingModel
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          $ref: '#/components/schemas/ImageStatus'
+        url:
+          type: string
+          format: uri
+          description: Presigned GET URL for the stored object
+        width:
+          type: integer
+          nullable: true
+          description: Pixel width when known
+        height:
+          type: integer
+          nullable: true
+          description: Pixel height when known
+        embeddingModel:
+          type: string
+
+    ImagePublic:
+      type: object
+      required:
+        - id
+        - originalFilename
+        - mimeType
+        - fileSize
+        - url
+        - embeddingModel
+        - embeddingDim
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+          nullable: true
+        originalFilename:
+          type: string
+        mimeType:
+          type: string
+        fileSize:
+          type: integer
+        width:
+          type: integer
+          nullable: true
+        height:
+          type: integer
+          nullable: true
+        url:
+          type: string
+          format: uri
+        embeddingModel:
+          type: string
+        embeddingDim:
+          type: integer
+        status:
+          $ref: '#/components/schemas/ImageStatus'
+        tags:
+          type: object
+          nullable: true
+          additionalProperties: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SearchMatch:
+      type: object
+      required: [id, url, score, metadata]
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        score:
+          type: number
+          description: Similarity score (~1 − cosine distance)
+        metadata:
+          type: object
+          description: |
+            Response objects include `width` and `height` keys with numbers or JSON `null` when unknown.
+          required: [filename, mimeType]
+          properties:
+            filename:
+              type: string
+            width:
+              type: integer
+              nullable: true
+              description: Pixel width when known
+            height:
+              type: integer
+              nullable: true
+              description: Pixel height when known
+            mimeType:
+              type: string
+
+    ImageSearchResponse:
+      type: object
+      required: [query, matches]
+      properties:
+        query:
+          type: object
+          required: [topK]
+          properties:
+            topK:
+              type: integer
+              minimum: 1
+              maximum: 100
+        matches:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchMatch'
