@@ -53,7 +53,10 @@ export const imagesRoute = new Hono()
     }
 
     const id = crypto.randomUUID();
-    const ext = mime === "image/heic" || mime === "image/heif" ? "png" : extensionForMime(mime);
+    const ext =
+      mime === "image/heic" || mime === "image/heif" || mime === "image/webp"
+        ? "png"
+        : extensionForMime(mime);
     const storageKey = `images/${id}.${ext}`;
 
     const row = await imageMetadata.createIndexedImage({

@@ -29,7 +29,7 @@ export type ProcessedImage = {
   height: number;
 };
 
-/** Auto-orient, optional downscale; re-encodes explicitly as jpeg, png, or webp. */
+/** Auto-orient, optional downscale; outputs jpeg/png for jpeg/png inputs, png for webp/heic. */
 export async function processImageBytes(
   env: Env,
   input: Uint8Array,
@@ -56,7 +56,10 @@ export async function processImageBytes(
           .toBuffer({ resolveWithObject: true }));
         break;
       case "image/webp":
-        ({ data, info } = await base.webp({ quality: 85 }).toBuffer({ resolveWithObject: true }));
+        // Gemini embed API accepts only PNG/JPEG for images, not WebP.
+        ({ data, info } = await base
+          .png({ compressionLevel: 9 })
+          .toBuffer({ resolveWithObject: true }));
         break;
       case "image/heic":
       case "image/heif":

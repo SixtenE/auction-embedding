@@ -56,6 +56,20 @@ export function createQdrantService(env: Env): QdrantService {
   function ensureCollection() {
     if (ensurePromise) return ensurePromise;
     ensurePromise = (async () => {
+      const existsRes = await fetch(`${baseUrl}/collections/${collection}`, {
+        method: "GET",
+        headers: defaultHeaders,
+      });
+      if (existsRes.ok) return;
+      if (existsRes.status !== 404) {
+        const body = await existsRes.text();
+        throw new AppError(
+          `Qdrant collection check failed: ${existsRes.status} ${body}`,
+          502,
+          "VECTOR_DB_ERROR",
+        );
+      }
+
       const res = await fetch(`${baseUrl}/collections/${collection}`, {
         method: "PUT",
         headers: defaultHeaders,
@@ -63,6 +77,7 @@ export function createQdrantService(env: Env): QdrantService {
           vectors: { size: env.EMBEDDING_DIM, distance: "Cosine" },
         }),
       });
+      if (res.status === 409) return;
       await parseQdrantResult(res, "collection create");
     })();
     ensurePromise = ensurePromise.catch((error) => {
