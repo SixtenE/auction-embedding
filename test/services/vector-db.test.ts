@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Env } from "../lib/env.js";
-import { createQdrantService } from "./vector-db.js";
+import type { Env } from "../../src/lib/env.js";
+import { createQdrantService } from "../../src/services/vector-db.js";
 
 const env: Env = {
   NODE_ENV: "test",

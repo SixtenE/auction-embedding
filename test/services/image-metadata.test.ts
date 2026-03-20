@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AppError } from "../lib/errors.js";
-import { createImageMetadataService } from "./image-metadata.js";
+import { AppError } from "../../src/lib/errors.js";
+import { createImageMetadataService } from "../../src/services/image-metadata.js";
 
-vi.mock("../utils/image-processing.js", () => ({
+vi.mock("../../src/utils/image-processing.js", () => ({
   processImageBytes: vi.fn(),
 }));
-import { processImageBytes } from "../utils/image-processing.js";
+import { processImageBytes } from "../../src/utils/image-processing.js";
 
 const mocked = {
   processImageBytes: processImageBytes as any,

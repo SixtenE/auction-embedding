@@ -1,9 +1,9 @@
 import sharp from "sharp";
 import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import { testClient } from "hono/testing";
-import { AppError } from "./lib/errors.js";
+import { AppError } from "../src/lib/errors.js";
 
-vi.mock("./services/index.js", () => ({
+vi.mock("../src/services/index.js", () => ({
   env: {
     MAX_UPLOAD_BYTES: 10 * 1024 * 1024,
     DEFAULT_TOP_K: 10,
@@ -24,18 +24,18 @@ vi.mock("./services/index.js", () => ({
   vectorDb: {},
 }));
 
-vi.mock("./services/vector-db.js", () => ({
+vi.mock("../src/services/vector-db.js", () => ({
   queryNearestByVector: vi.fn(),
 }));
 
-vi.mock("./lib/db.js", () => ({
+vi.mock("../src/lib/db.js", () => ({
   db: {},
 }));
 
-import { createApp } from "./app.js";
-import { imageMetadata, embeddings, storage, vectorDb } from "./services/index.js";
-import { queryNearestByVector } from "./services/vector-db.js";
-import { db } from "./lib/db.js";
+import { createApp } from "../src/app.js";
+import { imageMetadata, embeddings, storage, vectorDb } from "../src/services/index.js";
+import { queryNearestByVector } from "../src/services/vector-db.js";
+import { db } from "../src/lib/db.js";
 
 const mocks = {
   imageMetadata: imageMetadata as any,

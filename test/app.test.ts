@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { testClient } from "hono/testing";
-import { createApp } from "./app.js";
+import { createApp } from "../src/app.js";
 
 const app = createApp();
 const client = testClient<typeof app>(app);
