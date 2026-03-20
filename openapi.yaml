@@ -4,7 +4,7 @@ info:
   description: |
     Upload images to S3-compatible storage, embed with Gemini, store metadata in PostgreSQL and vectors in Qdrant, and search by image similarity.
 
-    **Multipart uploads:** use form field `image` (required file). Optional fields are strings (`metadata` as JSON text, `topK` as decimal digits).
+    **Multipart:** `POST /images` uses form field `image` (required file) and optional `metadata` (JSON object as a string). `POST /search/image` uses `image` and optional `topK` (decimal digits, 1–100).
 
     **Errors:** Validation failures (e.g. invalid UUID in path) return `400` with `{ "error": "Validation error", "details": … }`. Application errors return `{ "error": string, "code"?: string }` with an appropriate status. Unhandled errors return `500` with `{ "error": "Internal Server Error" }`.
 
@@ -68,13 +68,13 @@ paths:
                 contentType: application/octet-stream, image/jpeg, image/png, image/webp, image/heic, image/heif
       responses:
         "200":
-          description: Image accepted; `status` reflects pipeline state (e.g. `indexed` when done)
+          description: Image stored, embedded, and indexed in one request; `status` is `indexed` on success
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ImageUploadResponse"
         "400":
-          description: Missing file, bad metadata JSON, unsupported type, MIME mismatch, or invalid image
+          description: Missing file, metadata not a JSON object, invalid JSON, unsupported type, MIME mismatch, corrupt image, or bad dimensions
           content:
             application/json:
               schema:
@@ -84,15 +84,33 @@ paths:
                   value: { error: Image is required, code: MISSING_FILE }
                 badMetadata:
                   value: { error: Invalid metadata JSON, code: BAD_METADATA }
+                metadataNotObject:
+                  value: { error: metadata must be a JSON object, code: BAD_METADATA }
+                invalidImage:
+                  value: { error: Unsupported or invalid image, code: INVALID_IMAGE }
+                unsupportedType:
+                  value: { error: Unsupported image type, code: UNSUPPORTED_TYPE }
+                mimeMismatch:
+                  value: { error: MIME type does not match file contents, code: MIME_MISMATCH }
+                badImage:
+                  value: { error: Invalid or corrupt image, code: BAD_IMAGE }
         "413":
-          description: File exceeds `MAX_UPLOAD_BYTES`
+          description: Raw or processed image exceeds `MAX_UPLOAD_BYTES`
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/AppError"
-              example:
-                error: File too large
-                code: FILE_TOO_LARGE
+              examples:
+                rawTooLarge:
+                  value:
+                    error: File too large
+                    code: FILE_TOO_LARGE
+                processedTooLarge:
+                  value:
+                    error: Processed image still too large
+                    code: FILE_TOO_LARGE
+        "502":
+          $ref: "#/components/responses/BadGatewayError"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -127,7 +145,7 @@ paths:
     delete:
       tags: [Images]
       summary: Delete an image
-      description: Removes the database row and associated processing (implementation-defined cleanup of storage).
+      description: Deletes the Postgres row, removes the vector from Qdrant, and deletes the object from storage (failures on vector or storage cleanup are logged but still return 204 if the row was removed).
       operationId: deleteImage
       parameters:
         - $ref: "#/components/parameters/ImageId"
@@ -136,6 +154,15 @@ paths:
           description: Deleted successfully (no body)
         "400":
           $ref: "#/components/responses/ZodValidationError"
+        "404":
+          description: No image with this id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppError"
+              example:
+                error: Image not found
+                code: NOT_FOUND
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -156,6 +183,17 @@ paths:
                 $ref: "#/components/schemas/ImageUploadResponse"
         "400":
           $ref: "#/components/responses/ZodValidationError"
+        "404":
+          description: No image with this id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppError"
+              example:
+                error: Image not found
+                code: NOT_FOUND
+        "502":
+          $ref: "#/components/responses/BadGatewayError"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -193,24 +231,28 @@ paths:
               schema:
                 $ref: "#/components/schemas/ImageSearchResponse"
         "400":
-          description: Missing file, bad topK, or image validation error
+          description: Missing file, bad topK, or image validation error (`AppError` with `code`)
           content:
             application/json:
               schema:
-                oneOf:
-                  - $ref: "#/components/schemas/AppError"
-                  - $ref: "#/components/schemas/ZodErrorBody"
+                $ref: "#/components/schemas/AppError"
               examples:
                 badTopK:
                   value: { error: topK must be between 1 and 100, code: BAD_TOPK }
                 missingFile:
                   value: { error: Image is required, code: MISSING_FILE }
+                invalidImage:
+                  value: { error: Unsupported or invalid image, code: INVALID_IMAGE }
+                badImage:
+                  value: { error: Invalid or corrupt image, code: BAD_IMAGE }
         "413":
           description: Query file too large
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/AppError"
+        "502":
+          $ref: "#/components/responses/BadGatewayError"
         "500":
           $ref: "#/components/responses/InternalError"
 
@@ -245,6 +287,22 @@ components:
           schema:
             $ref: "#/components/schemas/ZodErrorBody"
 
+    BadGatewayError:
+      description: Upstream failure (e.g. embedding API or Qdrant)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AppError"
+          examples:
+            embedding:
+              value:
+                error: Embedding API failed
+                code: EMBEDDING_FAILED
+            vectorDb:
+              value:
+                error: Qdrant search failed
+                code: VECTOR_DB_ERROR
+
   schemas:
     HealthResponse:
       type: object
@@ -262,7 +320,7 @@ components:
           type: string
         code:
           type: string
-          description: Machine-readable code when present (e.g. `MISSING_FILE`, `NOT_FOUND`, `BAD_TOPK`)
+          description: Machine-readable code when present (e.g. `MISSING_FILE`, `NOT_FOUND`, `BAD_TOPK`, `EMBEDDING_FAILED`, `VECTOR_DB_ERROR`)
 
     ZodErrorBody:
       type: object

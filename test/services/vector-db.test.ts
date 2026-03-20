@@ -36,7 +36,9 @@ describe("createQdrantService.ensureCollection", () => {
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ result: { status: "green" } }), { status: 200 }),
       )
-      .mockResolvedValueOnce(new Response(JSON.stringify({ result: { operation_id: 1 } }), { status: 200 }));
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ result: { operation_id: 1 } }), { status: 200 }),
+      );
 
     const qdrant = createQdrantService(env);
 

@@ -157,7 +157,13 @@ describe("createImageMetadataService", () => {
       dbBundle.state.selectRows = [{ id: "img-3", storageKey: "images/key.png" }];
       storage.delete.mockRejectedValueOnce(new Error("s3 down"));
 
-      const svc = createImageMetadataService(env, dbBundle.db as any, storage, embeddings, vectorDb);
+      const svc = createImageMetadataService(
+        env,
+        dbBundle.db as any,
+        storage,
+        embeddings,
+        vectorDb,
+      );
 
       await expect(svc.deleteById("img-3")).resolves.toBeUndefined();
       expect(vectorDb.deleteImageVector).toHaveBeenCalledWith("img-3");
