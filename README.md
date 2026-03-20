@@ -51,6 +51,14 @@ Hono API: upload images to S3-compatible storage, embed with **Gemini Embedding 
 
    Server: `http://localhost:3000` (or `PORT` from `.env`).
 
+## Tests
+
+[Vitest](https://vitest.dev/) with Hono’s [`testClient`](https://hono.dev/docs/helpers/testing) (no live DB/S3 required for the included cases):
+
+```sh
+bun run test
+```
+
 ## API
 
 HTTP reference: [`openapi.yaml`](openapi.yaml) (OpenAPI 3.0; use with Swagger UI, Redoc, or codegen).
