@@ -7,8 +7,11 @@
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:ensure-pgvector": "bun run scripts/ensure-pgvector.ts",
-    "db:push": "bun run db:ensure-pgvector && drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "fmt": "oxfmt",
+    "fmt:check": "oxfmt --check",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1013.0",
@@ -24,6 +27,8 @@
     "@types/bun": "latest",
     "@types/pg": "^8.18.0",
     "drizzle-kit": "^0.31.10",
+    "oxfmt": "^0.41.0",
+    "oxlint": "^1.56.0",
     "vitest": "^4.1.0"
   }
 }

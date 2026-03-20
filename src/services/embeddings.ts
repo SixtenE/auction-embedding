@@ -1,22 +1,18 @@
-import {
-  createPartFromBase64,
-  createUserContent,
-  GoogleGenAI,
-} from '@google/genai'
-import { EMBEDDING_DIMENSIONS } from '../constants/embedding.js'
-import type { Env } from '../lib/env.js'
-import { AppError } from '../lib/errors.js'
+import { createPartFromBase64, createUserContent, GoogleGenAI } from "@google/genai";
+import { EMBEDDING_DIMENSIONS } from "../constants/embedding.js";
+import type { Env } from "../lib/env.js";
+import { AppError } from "../lib/errors.js";
 
 export type EmbeddingService = {
-  embedImage(input: { bytes: Uint8Array; mimeType: string }): Promise<number[]>
-}
+  embedImage(input: { bytes: Uint8Array; mimeType: string }): Promise<number[]>;
+};
 
 export function createEmbeddingService(env: Env): EmbeddingService {
-  const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY })
+  const ai = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
 
   return {
     async embedImage({ bytes, mimeType }) {
-      const b64 = Buffer.from(bytes).toString('base64')
+      const b64 = Buffer.from(bytes).toString("base64");
       try {
         const res = await ai.models.embedContent({
           model: env.EMBEDDING_MODEL,
@@ -24,21 +20,21 @@ export function createEmbeddingService(env: Env): EmbeddingService {
           config: {
             outputDimensionality: EMBEDDING_DIMENSIONS,
           },
-        })
-        const values = res.embeddings?.[0]?.values
+        });
+        const values = res.embeddings?.[0]?.values;
         if (!values || values.length !== EMBEDDING_DIMENSIONS) {
           throw new AppError(
             `Embedding dimension mismatch: expected ${EMBEDDING_DIMENSIONS}, got ${values?.length ?? 0}`,
             502,
-            'EMBEDDING_FAILED',
-          )
+            "EMBEDDING_FAILED",
+          );
         }
-        return values
+        return values;
       } catch (e) {
-        if (e instanceof AppError) throw e
-        console.error(e)
-        throw new AppError('Embedding API failed', 502, 'EMBEDDING_FAILED')
+        if (e instanceof AppError) throw e;
+        console.error(e);
+        throw new AppError("Embedding API failed", 502, "EMBEDDING_FAILED");
       }
     },
-  }
+  };
 }

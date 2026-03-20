@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: auction-embedding API
   description: |
-    Upload images to S3-compatible storage, embed with Gemini, store vectors in PostgreSQL + pgvector, and search by image similarity.
+    Upload images to S3-compatible storage, embed with Gemini, store metadata in PostgreSQL and vectors in Qdrant, and search by image similarity.
 
     **Multipart uploads:** use form field `image` (required file). Optional fields are strings (`metadata` as JSON text, `topK` as decimal digits).
 
@@ -31,12 +31,12 @@ paths:
       summary: Liveness / readiness probe
       operationId: getHealth
       responses:
-        '200':
+        "200":
           description: Service is up
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HealthResponse'
+                $ref: "#/components/schemas/HealthResponse"
 
   /images:
     post:
@@ -67,34 +67,34 @@ paths:
               image:
                 contentType: application/octet-stream, image/jpeg, image/png, image/webp, image/heic, image/heif
       responses:
-        '200':
+        "200":
           description: Image accepted; `status` reflects pipeline state (e.g. `indexed` when done)
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ImageUploadResponse'
-        '400':
+                $ref: "#/components/schemas/ImageUploadResponse"
+        "400":
           description: Missing file, bad metadata JSON, unsupported type, MIME mismatch, or invalid image
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AppError'
+                $ref: "#/components/schemas/AppError"
               examples:
                 missingFile:
                   value: { error: Image is required, code: MISSING_FILE }
                 badMetadata:
                   value: { error: Invalid metadata JSON, code: BAD_METADATA }
-        '413':
+        "413":
           description: File exceeds `MAX_UPLOAD_BYTES`
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AppError'
+                $ref: "#/components/schemas/AppError"
               example:
                 error: File too large
                 code: FILE_TOO_LARGE
-        '500':
-          $ref: '#/components/responses/InternalError'
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /images/{id}:
     get:
@@ -102,27 +102,27 @@ paths:
       summary: Get image metadata and presigned URL
       operationId: getImageById
       parameters:
-        - $ref: '#/components/parameters/ImageId'
+        - $ref: "#/components/parameters/ImageId"
       responses:
-        '200':
+        "200":
           description: Full record with short-lived presigned GET URL for the object
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ImagePublic'
-        '400':
-          $ref: '#/components/responses/ZodValidationError'
-        '404':
+                $ref: "#/components/schemas/ImagePublic"
+        "400":
+          $ref: "#/components/responses/ZodValidationError"
+        "404":
           description: No image with this id
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AppError'
+                $ref: "#/components/schemas/AppError"
               example:
                 error: Image not found
                 code: NOT_FOUND
-        '500':
-          $ref: '#/components/responses/InternalError'
+        "500":
+          $ref: "#/components/responses/InternalError"
 
     delete:
       tags: [Images]
@@ -130,14 +130,14 @@ paths:
       description: Removes the database row and associated processing (implementation-defined cleanup of storage).
       operationId: deleteImage
       parameters:
-        - $ref: '#/components/parameters/ImageId'
+        - $ref: "#/components/parameters/ImageId"
       responses:
-        '204':
+        "204":
           description: Deleted successfully (no body)
-        '400':
-          $ref: '#/components/responses/ZodValidationError'
-        '500':
-          $ref: '#/components/responses/InternalError'
+        "400":
+          $ref: "#/components/responses/ZodValidationError"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /images/{id}/reindex:
     post:
@@ -146,25 +146,25 @@ paths:
       description: Re-runs embedding/indexing for an existing row using the configured model and dimensions.
       operationId: reindexImage
       parameters:
-        - $ref: '#/components/parameters/ImageId'
+        - $ref: "#/components/parameters/ImageId"
       responses:
-        '200':
+        "200":
           description: Same shape as upload response after reindex
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ImageUploadResponse'
-        '400':
-          $ref: '#/components/responses/ZodValidationError'
-        '500':
-          $ref: '#/components/responses/InternalError'
+                $ref: "#/components/schemas/ImageUploadResponse"
+        "400":
+          $ref: "#/components/responses/ZodValidationError"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
   /search/image:
     post:
       tags: [Search]
       summary: Similarity search by query image
       description: |
-        Embeds the uploaded query image and returns the nearest indexed neighbors by pgvector cosine distance.
+        Embeds the uploaded query image and returns the nearest indexed neighbors using Qdrant cosine similarity.
       operationId: searchByImage
       requestBody:
         required: true
@@ -181,38 +181,38 @@ paths:
                 topK:
                   type: string
                   description: Number of results (integer as string, 1–100). Omit for server default.
-                  example: '10'
+                  example: "10"
             encoding:
               image:
                 contentType: application/octet-stream, image/jpeg, image/png, image/webp, image/heic, image/heif
       responses:
-        '200':
+        "200":
           description: Ranked matches with presigned URLs and light metadata
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ImageSearchResponse'
-        '400':
+                $ref: "#/components/schemas/ImageSearchResponse"
+        "400":
           description: Missing file, bad topK, or image validation error
           content:
             application/json:
               schema:
                 oneOf:
-                  - $ref: '#/components/schemas/AppError'
-                  - $ref: '#/components/schemas/ZodErrorBody'
+                  - $ref: "#/components/schemas/AppError"
+                  - $ref: "#/components/schemas/ZodErrorBody"
               examples:
                 badTopK:
                   value: { error: topK must be between 1 and 100, code: BAD_TOPK }
                 missingFile:
                   value: { error: Image is required, code: MISSING_FILE }
-        '413':
+        "413":
           description: Query file too large
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AppError'
-        '500':
-          $ref: '#/components/responses/InternalError'
+                $ref: "#/components/schemas/AppError"
+        "500":
+          $ref: "#/components/responses/InternalError"
 
 components:
   parameters:
@@ -243,7 +243,7 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ZodErrorBody'
+            $ref: "#/components/schemas/ZodErrorBody"
 
   schemas:
     HealthResponse:
@@ -298,7 +298,7 @@ components:
           type: string
           format: uuid
         status:
-          $ref: '#/components/schemas/ImageStatus'
+          $ref: "#/components/schemas/ImageStatus"
         url:
           type: string
           format: uri
@@ -355,7 +355,7 @@ components:
         embeddingDim:
           type: integer
         status:
-          $ref: '#/components/schemas/ImageStatus'
+          $ref: "#/components/schemas/ImageStatus"
         tags:
           type: object
           nullable: true
@@ -379,7 +379,7 @@ components:
           format: uri
         score:
           type: number
-          description: Similarity score (~1 − cosine distance)
+          description: Similarity score from Qdrant cosine search
         metadata:
           type: object
           description: |
@@ -414,4 +414,4 @@ components:
         matches:
           type: array
           items:
-            $ref: '#/components/schemas/SearchMatch'
+            $ref: "#/components/schemas/SearchMatch"

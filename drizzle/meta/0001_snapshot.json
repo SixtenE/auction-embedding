@@ -1,6 +1,6 @@
 {
-  "id": "0341b2b0-c5bb-4842-8de9-0720106c4348",
-  "prevId": "00000000-0000-0000-0000-000000000000",
+  "id": "0a0df437-4ac7-4674-bb70-6ad7690d9770",
+  "prevId": "0341b2b0-c5bb-4842-8de9-0720106c4348",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -80,12 +80,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "embedding": {
-          "name": "embedding",
-          "type": "vector(3072)",
-          "primaryKey": false,
-          "notNull": false
         },
         "tags": {
           "name": "tags",

@@ -1,64 +1,61 @@
-import { eq } from 'drizzle-orm'
-import { EMBEDDING_DIMENSIONS } from '../constants/embedding.js'
-import type { Database } from '../lib/db.js'
-import { images, type ImageRow } from '../db/schema.js'
-import type { Env } from '../lib/env.js'
-import { AppError } from '../lib/errors.js'
-import { processImageBytes } from '../utils/image-processing.js'
-import type { EmbeddingService } from './embeddings.js'
-import type { StorageService } from './storage.js'
+import { eq } from "drizzle-orm";
+import { EMBEDDING_DIMENSIONS } from "../constants/embedding.js";
+import type { Database } from "../lib/db.js";
+import { images, type ImageRow } from "../db/schema.js";
+import type { Env } from "../lib/env.js";
+import { AppError } from "../lib/errors.js";
+import { processImageBytes } from "../utils/image-processing.js";
+import type { EmbeddingService } from "./embeddings.js";
+import type { StorageService } from "./storage.js";
+import type { QdrantService } from "./vector-db.js";
 
 export type ImageMetadataService = {
   createIndexedImage(input: {
-    originalFilename: string
-    rawBytes: Uint8Array
-    contentType: string
-    storageKey: string
-    tags?: Record<string, unknown> | null
-  }): Promise<ImageRow>
+    originalFilename: string;
+    rawBytes: Uint8Array;
+    contentType: string;
+    storageKey: string;
+    tags?: Record<string, unknown> | null;
+  }): Promise<ImageRow>;
 
-  getById(id: string): Promise<ImageRow | undefined>
+  getById(id: string): Promise<ImageRow | undefined>;
 
-  deleteById(id: string): Promise<void>
+  deleteById(id: string): Promise<void>;
 
-  reindexImage(id: string): Promise<ImageRow>
-}
+  reindexImage(id: string): Promise<ImageRow>;
+};
 
 export function createImageMetadataService(
   env: Env,
   db: Database,
   storage: StorageService,
   embeddings: EmbeddingService,
+  vectorDb: QdrantService,
 ): ImageMetadataService {
   async function getById(id: string): Promise<ImageRow | undefined> {
-    const [row] = await db.select().from(images).where(eq(images.id, id)).limit(1)
-    return row
+    const [row] = await db.select().from(images).where(eq(images.id, id)).limit(1);
+    return row;
   }
 
   return {
     async createIndexedImage(input) {
-      const {
-        originalFilename,
-        rawBytes,
-        contentType,
-        storageKey,
-        tags = null,
-      } = input
+      const { originalFilename, rawBytes, contentType, storageKey, tags = null } = input;
 
-      const processed = await processImageBytes(env, rawBytes, contentType)
+      const processed = await processImageBytes(env, rawBytes, contentType);
       const vector = await embeddings.embedImage({
         bytes: processed.bytes,
         mimeType: processed.mimeType,
-      })
+      });
 
       const { url } = await storage.upload({
         key: storageKey,
         body: processed.bytes,
         contentType: processed.mimeType,
-      })
+      });
 
+      let row: ImageRow | undefined;
       try {
-        const [row] = await db
+        [row] = await db
           .insert(images)
           .values({
             originalFilename,
@@ -70,73 +67,85 @@ export function createImageMetadataService(
             publicUrl: url,
             embeddingModel: env.EMBEDDING_MODEL,
             embeddingDim: EMBEDDING_DIMENSIONS,
-            status: 'indexed',
-            embedding: vector,
+            status: "indexed",
             tags,
           })
-          .returning()
-
+          .returning();
         if (!row) {
-          throw new AppError('Failed to insert image row', 500, 'DB_ERROR')
+          throw new AppError("Failed to insert image row", 500, "DB_ERROR");
         }
-        return row
+
+        await vectorDb.upsertImageVector(row.id, vector);
+        return row;
       } catch (e) {
+        if (row) {
+          try {
+            await db.delete(images).where(eq(images.id, row.id));
+          } catch {
+            /* best-effort rollback */
+          }
+        }
         try {
-          await storage.delete(storageKey)
+          await storage.delete(storageKey);
         } catch {
           /* best-effort cleanup */
         }
-        throw e
+        throw e;
       }
     },
 
     getById,
 
     async deleteById(id) {
-      const row = await getById(id)
+      const row = await getById(id);
       if (!row) {
-        throw new AppError('Image not found', 404, 'NOT_FOUND')
+        throw new AppError("Image not found", 404, "NOT_FOUND");
       }
-      await db.delete(images).where(eq(images.id, id))
+      await db.delete(images).where(eq(images.id, id));
       try {
-        await storage.delete(row.storageKey)
+        await vectorDb.deleteImageVector(id);
       } catch (e) {
-        console.error('Storage delete after DB remove failed', e)
+        console.error("Vector delete after DB remove failed", e);
+      }
+      try {
+        await storage.delete(row.storageKey);
+      } catch (e) {
+        console.error("Storage delete after DB remove failed", e);
       }
     },
 
     async reindexImage(id) {
-      const row = await getById(id)
+      const row = await getById(id);
       if (!row) {
-        throw new AppError('Image not found', 404, 'NOT_FOUND')
+        throw new AppError("Image not found", 404, "NOT_FOUND");
       }
-      const bytes = await storage.getBytes(row.storageKey)
-      const processed = await processImageBytes(env, bytes, row.mimeType)
+      const bytes = await storage.getBytes(row.storageKey);
+      const processed = await processImageBytes(env, bytes, row.mimeType);
       const vector = await embeddings.embedImage({
         bytes: processed.bytes,
         mimeType: processed.mimeType,
-      })
+      });
 
       const [updated] = await db
         .update(images)
         .set({
-          embedding: vector,
           embeddingModel: env.EMBEDDING_MODEL,
           embeddingDim: EMBEDDING_DIMENSIONS,
           width: processed.width,
           height: processed.height,
           fileSize: processed.bytes.byteLength,
           mimeType: processed.mimeType,
-          status: 'indexed',
+          status: "indexed",
           updatedAt: new Date(),
         })
         .where(eq(images.id, id))
-        .returning()
+        .returning();
 
       if (!updated) {
-        throw new AppError('Failed to update image', 500, 'DB_ERROR')
+        throw new AppError("Failed to update image", 500, "DB_ERROR");
       }
-      return updated
+      await vectorDb.upsertImageVector(id, vector);
+      return updated;
     },
-  }
+  };
 }

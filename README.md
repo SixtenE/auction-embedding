@@ -1,11 +1,11 @@
 # auction-embedding
 
-Hono API: upload images to S3-compatible storage, embed with **Gemini Embedding 2**, store vectors in **PostgreSQL + pgvector**, search by image similarity.
+Hono API: upload images to S3-compatible storage, embed with **Gemini Embedding 2**, store image metadata in **PostgreSQL** and vectors in **Qdrant**, then search by image similarity.
 
 ## Prerequisites
 
 - [Bun](https://bun.sh/)
-- Docker (for local Postgres + MinIO)
+- Docker (for local Postgres + MinIO + Qdrant)
 - A [Gemini API key](https://ai.google.dev/gemini-api/docs/api-key) with access to the embedding model you configure (`gemini-embedding-2-preview` by default)
 
 ## Setup
@@ -18,7 +18,7 @@ Hono API: upload images to S3-compatible storage, embed with **Gemini Embedding 
 
    Set `GEMINI_API_KEY` and adjust URLs if not using the compose defaults.
 
-2. **Start Postgres + MinIO**
+2. **Start Postgres + MinIO + Qdrant**
 
    ```sh
    docker compose up -d
@@ -41,7 +41,7 @@ Hono API: upload images to S3-compatible storage, embed with **Gemini Embedding 
    bun run db:migrate
    ```
 
-   Ensure `DATABASE_URL` in `.env` points at the running Postgres (see `.env.example`).
+   Ensure `DATABASE_URL` points at Postgres and `QDRANT_URL` points at Qdrant (see `.env.example`).
 
 5. **Run the API**
 
@@ -111,22 +111,22 @@ curl -s -X POST http://localhost:3000/images/<uuid>/reindex
 
 ## Scripts
 
-| Script            | Description              |
-| ----------------- | ------------------------ |
-| `bun run dev`     | Dev server with hot reload |
-| `bun run db:generate` | New migration from schema |
-| `bun run db:migrate`  | Apply migrations       |
-| `bun run db:push`     | Push schema (dev only) |
+| Script                | Description                |
+| --------------------- | -------------------------- |
+| `bun run dev`         | Dev server with hot reload |
+| `bun run db:generate` | New migration from schema  |
+| `bun run db:migrate`  | Apply migrations           |
+| `bun run db:push`     | Push schema (dev only)     |
 
 ## Notes
 
-- **Similarity**: Results use cosine distance via pgvector; the API returns **score ≈ 1 − distance** (`vector_cosine_ops`).
+- **Similarity**: Results use cosine similarity from Qdrant (`distance: Cosine`), returned as `score`.
 - **Limits**: Max upload size `MAX_UPLOAD_BYTES` (default 10 MB). Accepted types: JPEG, PNG, WebP, HEIC/HEIF (MIME + magic-byte check). **HEIC** uploads are decoded and stored as **PNG** (and embedded from that PNG). HEIC needs a **sharp/libvips build with libheif** (common on macOS; on Linux you may need extra packages such as `libheif` / `vips` with HEIF enabled).
 - **Image URLs**: JSON responses use **presigned GET URLs** so private buckets work. TTL is `S3_PRESIGN_EXPIRES_SECONDS` (60–604800s, default 3600). `S3_PUBLIC_BASE_URL` is still stored on rows as a stable prefix reference.
 
 ## Project layout
 
 - `src/routes/` — HTTP handlers
-- `src/services/` — storage, embeddings, vector search, image records
-- `src/db/schema.ts` — Drizzle + `vector(3072)`
+- `src/services/` — storage, embeddings, Qdrant vector search, image records
+- `src/db/schema.ts` — Drizzle schema for image metadata in Postgres
 - `drizzle/` — SQL migrations
