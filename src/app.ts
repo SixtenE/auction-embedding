@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { serveStatic } from "hono/bun";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { ZodError } from "zod";
 import { imagesRoute } from "./routes/images.js";
@@ -10,6 +11,11 @@ export function createApp() {
     .get("/health", (c) => c.json({ ok: true }))
     .route("/images", imagesRoute)
     .route("/search", searchRoute)
+    .use("/*", serveStatic({ root: "./frontend/dist" }))
+    .get("*", async (c) => {
+      const html = await Bun.file("./frontend/dist/index.html").text();
+      return c.html(html);
+    })
     .onError((err, c) => {
       if (err instanceof ZodError) {
         return c.json(
