@@ -9,6 +9,7 @@ import type { SearchMatch, ImageRecord } from "@/types";
 import { cn } from "@/lib/utils";
 import { ImageCard } from "@/components/ImageCard";
 import { ImageDetailDialog } from "@/components/ImageDetailDialog";
+import { motion, AnimatePresence } from "motion/react";
 
 export function SearchTab() {
   const [file, setFile] = useState<File | null>(null);
@@ -116,28 +117,44 @@ export function SearchTab() {
           className="hidden"
           onChange={(e) => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }}
         />
-        {preview ? (
-          <div className="relative inline-block">
-            <img
-              src={preview}
-              alt="Query"
-              className="max-h-48 max-w-full rounded-md object-contain mx-auto"
-            />
-            <button
-              type="button"
-              className="absolute -top-2 -right-2 rounded-full bg-destructive text-destructive-foreground p-0.5 hover:bg-destructive/90"
-              onClick={(e) => { e.stopPropagation(); handleClear(); }}
+        <AnimatePresence mode="wait">
+          {preview ? (
+            <motion.div
+              key="preview"
+              className="relative inline-block"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
             >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-2 text-muted-foreground">
-            <Search className="h-10 w-10" />
-            <p className="text-sm font-medium">Drop a query image here or click to select</p>
-            <p className="text-xs">JPEG, PNG, WebP, HEIC — max 10 MB</p>
-          </div>
-        )}
+              <img
+                src={preview}
+                alt="Query"
+                className="max-h-48 max-w-full rounded-md object-contain mx-auto"
+              />
+              <button
+                type="button"
+                className="absolute -top-2 -right-2 rounded-full bg-destructive text-destructive-foreground p-0.5 hover:bg-destructive/90"
+                onClick={(e) => { e.stopPropagation(); handleClear(); }}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="placeholder"
+              className="flex flex-col items-center gap-2 text-muted-foreground"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Search className="h-10 w-10" />
+              <p className="text-sm font-medium">Drop a query image here or click to select</p>
+              <p className="text-xs">JPEG, PNG, WebP, HEIC — max 10 MB</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Controls */}
@@ -170,25 +187,52 @@ export function SearchTab() {
       </div>
 
       {/* Results */}
-      {results !== null && (
-        results.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3">
-            <ImageOff className="h-12 w-12" />
-            <p className="text-sm">No similar images found</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            {results.map((match) => (
-              <ImageCard
-                key={match.id}
-                match={match}
-                onViewDetails={() => handleViewDetails(match.id)}
-                onDelete={() => handleDelete(match.id)}
-              />
-            ))}
-          </div>
-        )
-      )}
+      <AnimatePresence mode="wait">
+        {results !== null && (
+          results.length === 0 ? (
+            <motion.div
+              key="empty"
+              className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.25 }}
+            >
+              <ImageOff className="h-12 w-12" />
+              <p className="text-sm">No similar images found</p>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="grid"
+              className="grid grid-cols-2 sm:grid-cols-3 gap-4"
+              initial="hidden"
+              animate="visible"
+              exit="hidden"
+              variants={{
+                visible: { transition: { staggerChildren: 0.06 } },
+                hidden: {},
+              }}
+            >
+              {results.map((match) => (
+                <motion.div
+                  key={match.id}
+                  variants={{
+                    hidden: { opacity: 0, y: 16, scale: 0.97 },
+                    visible: { opacity: 1, y: 0, scale: 1 },
+                  }}
+                  transition={{ duration: 0.3, ease: "easeOut" }}
+                >
+                  <ImageCard
+                    match={match}
+                    onViewDetails={() => handleViewDetails(match.id)}
+                    onDelete={() => handleDelete(match.id)}
+                  />
+                </motion.div>
+              ))}
+            </motion.div>
+          )
+        )}
+      </AnimatePresence>
 
       <ImageDetailDialog
         open={detailOpen}
