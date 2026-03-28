@@ -1,6 +1,6 @@
 import type { ImageRecord, SearchResponse, UploadResponse } from "@/types";
 
-const BASE = "/api";
+const BASE = "";
 
 export async function uploadImage(
   file: File,
