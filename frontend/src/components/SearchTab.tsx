@@ -4,8 +4,8 @@ import { Search, X, Loader2, ImageOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { searchByImage, deleteImage, getImage } from "@/lib/api";
-import type { SearchMatch, ImageRecord } from "@/types";
+import { useSearchByImage, useGetImage, useDeleteImage } from "@/lib/queries";
+import type { SearchMatch } from "@/types";
 import { cn } from "@/lib/utils";
 import { ImageCard } from "@/components/ImageCard";
 import { ImageDetailDialog } from "@/components/ImageDetailDialog";
@@ -14,12 +14,14 @@ export function SearchTab() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [topK, setTopK] = useState("10");
-  const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<SearchMatch[] | null>(null);
   const [dragging, setDragging] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<ImageRecord | null>(null);
+  const [detailImageId, setDetailImageId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [loadingDetail, setLoadingDetail] = useState(false);
+
+  const search = useSearchByImage();
+  const imageDetail = useGetImage(detailOpen ? detailImageId : null);
+  const deleteMutation = useDeleteImage();
 
   const handleFile = useCallback((f: File) => {
     setFile(f);
@@ -43,56 +45,46 @@ export function SearchTab() {
     setResults(null);
   };
 
-  const handleSearch = async () => {
+  const handleSearch = () => {
     if (!file) return;
     const k = parseInt(topK, 10);
     if (isNaN(k) || k < 1 || k > 100) {
       toast.error("Top K must be between 1 and 100");
       return;
     }
-    setSearching(true);
-    try {
-      const data = await searchByImage(file, k);
-      setResults(data.matches);
-      if (data.matches.length === 0) {
-        toast.info("No similar images found");
-      } else {
-        toast.success(`Found ${data.matches.length} similar image${data.matches.length !== 1 ? "s" : ""}`);
+    search.mutate(
+      { file, topK: k },
+      {
+        onSuccess: (data) => {
+          setResults(data.matches);
+          if (data.matches.length === 0) {
+            toast.info("No similar images found");
+          } else {
+            toast.success(`Found ${data.matches.length} similar image${data.matches.length !== 1 ? "s" : ""}`);
+          }
+        },
+        onError: (err) => toast.error(err instanceof Error ? err.message : "Search failed"),
       }
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Search failed");
-    } finally {
-      setSearching(false);
-    }
+    );
   };
 
-  const handleViewDetails = async (id: string) => {
-    setSelectedImage(null);
-    setLoadingDetail(true);
+  const handleViewDetails = (id: string) => {
+    setDetailImageId(id);
     setDetailOpen(true);
-    try {
-      const img = await getImage(id);
-      setSelectedImage(img);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to load details");
-      setDetailOpen(false);
-    } finally {
-      setLoadingDetail(false);
-    }
   };
 
-  const handleDelete = async (id: string) => {
-    try {
-      await deleteImage(id);
-      setResults((prev) => prev?.filter((m) => m.id !== id) ?? null);
-      if (selectedImage?.id === id) {
-        setDetailOpen(false);
-        setSelectedImage(null);
-      }
-      toast.success("Image deleted");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Delete failed");
-    }
+  const handleDelete = (id: string) => {
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        setResults((prev) => prev?.filter((m) => m.id !== id) ?? null);
+        if (detailImageId === id) {
+          setDetailOpen(false);
+          setDetailImageId(null);
+        }
+        toast.success("Image deleted");
+      },
+      onError: (err) => toast.error(err instanceof Error ? err.message : "Delete failed"),
+    });
   };
 
   return (
@@ -151,11 +143,11 @@ export function SearchTab() {
             max={100}
             value={topK}
             onChange={(e) => setTopK(e.target.value)}
-            disabled={searching}
+            disabled={search.isPending}
           />
         </div>
-        <Button onClick={handleSearch} disabled={!file || searching} className="flex-1">
-          {searching ? (
+        <Button onClick={handleSearch} disabled={!file || search.isPending} className="flex-1">
+          {search.isPending ? (
             <>
               <Loader2 className="animate-spin" />
               Searching…
@@ -193,8 +185,8 @@ export function SearchTab() {
       <ImageDetailDialog
         open={detailOpen}
         onOpenChange={setDetailOpen}
-        image={selectedImage}
-        loading={loadingDetail}
+        image={imageDetail.data ?? null}
+        loading={imageDetail.isLoading}
         onDelete={handleDelete}
       />
     </div>

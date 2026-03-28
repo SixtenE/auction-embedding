@@ -6,8 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { uploadImage } from "@/lib/api";
-import type { UploadResponse } from "@/types";
+import { useUploadImage } from "@/lib/queries";
 import { cn } from "@/lib/utils";
 
 function StatusBadge({ status }: { status: string }) {
@@ -42,15 +41,14 @@ export function UploadTab() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [tagsJson, setTagsJson] = useState("");
-  const [uploading, setUploading] = useState(false);
-  const [result, setResult] = useState<UploadResponse | null>(null);
   const [dragging, setDragging] = useState(false);
+  const upload = useUploadImage();
 
   const handleFile = useCallback((f: File) => {
     setFile(f);
-    setResult(null);
+    upload.reset();
     setPreview(URL.createObjectURL(f));
-  }, []);
+  }, [upload]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -65,11 +63,11 @@ export function UploadTab() {
   const handleClear = () => {
     setFile(null);
     setPreview(null);
-    setResult(null);
+    upload.reset();
     setTagsJson("");
   };
 
-  const handleUpload = async () => {
+  const handleUpload = () => {
     if (!file) return;
     let tags: Record<string, unknown> | undefined;
     if (tagsJson.trim()) {
@@ -80,16 +78,13 @@ export function UploadTab() {
         return;
       }
     }
-    setUploading(true);
-    try {
-      const data = await uploadImage(file, tags);
-      setResult(data);
-      toast.success("Image uploaded and indexed");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Upload failed");
-    } finally {
-      setUploading(false);
-    }
+    upload.mutate(
+      { file, tags },
+      {
+        onSuccess: () => toast.success("Image uploaded and indexed"),
+        onError: (err) => toast.error(err instanceof Error ? err.message : "Upload failed"),
+      }
+    );
   };
 
   return (
@@ -145,12 +140,12 @@ export function UploadTab() {
           placeholder='{"category": "watch", "lot": 42}'
           value={tagsJson}
           onChange={(e) => setTagsJson(e.target.value)}
-          disabled={uploading}
+          disabled={upload.isPending}
         />
       </div>
 
-      <Button onClick={handleUpload} disabled={!file || uploading} className="w-full">
-        {uploading ? (
+      <Button onClick={handleUpload} disabled={!file || upload.isPending} className="w-full">
+        {upload.isPending ? (
           <>
             <Loader2 className="animate-spin" />
             Uploading…
@@ -164,33 +159,33 @@ export function UploadTab() {
       </Button>
 
       {/* Result */}
-      {result && (
+      {upload.data && (
         <Card>
           <CardContent className="pt-4 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium">Upload Result</span>
-              <StatusBadge status={result.status} />
+              <StatusBadge status={upload.data.status} />
             </div>
             <div className="rounded-md overflow-hidden bg-muted flex items-center justify-center min-h-24">
               <img
-                src={result.url}
+                src={upload.data.url}
                 alt="Uploaded"
                 className="max-h-48 max-w-full object-contain"
               />
             </div>
             <dl className="text-sm grid grid-cols-[auto,1fr] gap-x-6 gap-y-1">
               <dt className="text-muted-foreground">ID</dt>
-              <dd className="font-mono text-xs truncate">{result.id}</dd>
-              {result.width && result.height ? (
+              <dd className="font-mono text-xs truncate">{upload.data.id}</dd>
+              {upload.data.width && upload.data.height ? (
                 <>
                   <dt className="text-muted-foreground">Dimensions</dt>
-                  <dd>{result.width} × {result.height}</dd>
+                  <dd>{upload.data.width} × {upload.data.height}</dd>
                 </>
               ) : null}
-              {result.embeddingModel ? (
+              {upload.data.embeddingModel ? (
                 <>
                   <dt className="text-muted-foreground">Model</dt>
-                  <dd className="truncate">{result.embeddingModel}</dd>
+                  <dd className="truncate">{upload.data.embeddingModel}</dd>
                 </>
               ) : null}
             </dl>
