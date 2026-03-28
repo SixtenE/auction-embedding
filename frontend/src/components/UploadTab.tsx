@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useUploadImage } from "@/lib/queries";
 import { cn } from "@/lib/utils";
+import { motion, AnimatePresence } from "motion/react";
 
 function StatusBadge({ status }: { status: string }) {
   if (status === "indexed") {
@@ -108,28 +109,44 @@ export function UploadTab() {
           className="hidden"
           onChange={(e) => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }}
         />
-        {preview ? (
-          <div className="relative inline-block">
-            <img
-              src={preview}
-              alt="Preview"
-              className="max-h-64 max-w-full rounded-md object-contain mx-auto"
-            />
-            <button
-              type="button"
-              className="absolute -top-2 -right-2 rounded-full bg-destructive text-destructive-foreground p-0.5 hover:bg-destructive/90"
-              onClick={(e) => { e.stopPropagation(); handleClear(); }}
+        <AnimatePresence mode="wait">
+          {preview ? (
+            <motion.div
+              key="preview"
+              className="relative inline-block"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.2 }}
             >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center gap-2 text-muted-foreground">
-            <Upload className="h-10 w-10" />
-            <p className="text-sm font-medium">Drop an image here or click to select</p>
-            <p className="text-xs">JPEG, PNG, WebP, HEIC — max 10 MB</p>
-          </div>
-        )}
+              <img
+                src={preview}
+                alt="Preview"
+                className="max-h-64 max-w-full rounded-md object-contain mx-auto"
+              />
+              <button
+                type="button"
+                className="absolute -top-2 -right-2 rounded-full bg-destructive text-destructive-foreground p-0.5 hover:bg-destructive/90"
+                onClick={(e) => { e.stopPropagation(); handleClear(); }}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="placeholder"
+              className="flex flex-col items-center gap-2 text-muted-foreground"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              <Upload className="h-10 w-10" />
+              <p className="text-sm font-medium">Drop an image here or click to select</p>
+              <p className="text-xs">JPEG, PNG, WebP, HEIC — max 10 MB</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Tags */}
@@ -159,39 +176,48 @@ export function UploadTab() {
       </Button>
 
       {/* Result */}
-      {upload.data && (
-        <Card>
-          <CardContent className="pt-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Upload Result</span>
-              <StatusBadge status={upload.data.status} />
-            </div>
-            <div className="rounded-md overflow-hidden bg-muted flex items-center justify-center min-h-24">
-              <img
-                src={upload.data.url}
-                alt="Uploaded"
-                className="max-h-48 max-w-full object-contain"
-              />
-            </div>
-            <dl className="text-sm grid grid-cols-[auto,1fr] gap-x-6 gap-y-1">
-              <dt className="text-muted-foreground">ID</dt>
-              <dd className="font-mono text-xs truncate">{upload.data.id}</dd>
-              {upload.data.width && upload.data.height ? (
-                <>
-                  <dt className="text-muted-foreground">Dimensions</dt>
-                  <dd>{upload.data.width} × {upload.data.height}</dd>
-                </>
-              ) : null}
-              {upload.data.embeddingModel ? (
-                <>
-                  <dt className="text-muted-foreground">Model</dt>
-                  <dd className="truncate">{upload.data.embeddingModel}</dd>
-                </>
-              ) : null}
-            </dl>
-          </CardContent>
-        </Card>
-      )}
+      <AnimatePresence>
+        {upload.data && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 12 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+          >
+            <Card>
+              <CardContent className="pt-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Upload Result</span>
+                  <StatusBadge status={upload.data.status} />
+                </div>
+                <div className="rounded-md overflow-hidden bg-muted flex items-center justify-center min-h-24">
+                  <img
+                    src={upload.data.url}
+                    alt="Uploaded"
+                    className="max-h-48 max-w-full object-contain"
+                  />
+                </div>
+                <dl className="text-sm grid grid-cols-[auto,1fr] gap-x-6 gap-y-1">
+                  <dt className="text-muted-foreground">ID</dt>
+                  <dd className="font-mono text-xs truncate">{upload.data.id}</dd>
+                  {upload.data.width && upload.data.height ? (
+                    <>
+                      <dt className="text-muted-foreground">Dimensions</dt>
+                      <dd>{upload.data.width} × {upload.data.height}</dd>
+                    </>
+                  ) : null}
+                  {upload.data.embeddingModel ? (
+                    <>
+                      <dt className="text-muted-foreground">Model</dt>
+                      <dd className="truncate">{upload.data.embeddingModel}</dd>
+                    </>
+                  ) : null}
+                </dl>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
