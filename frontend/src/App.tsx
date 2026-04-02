@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UploadTab } from "@/components/UploadTab";
 import { SearchTab } from "@/components/SearchTab";
 import { Toaster } from "sonner";
@@ -33,23 +33,18 @@ function App() {
               <TabsTrigger value="search">Search</TabsTrigger>
             </TabsList>
           </motion.div>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={activeTab}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.2 }}
-            >
-              <TabsContent value="upload" forceMount={activeTab === "upload" ? true : undefined}>
-                <UploadTab />
-              </TabsContent>
-              <TabsContent value="search" forceMount={activeTab === "search" ? true : undefined}>
-                <SearchTab />
-              </TabsContent>
-            </motion.div>
-          </AnimatePresence>
         </Tabs>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={activeTab}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.15 }}
+          >
+            {activeTab === "upload" ? <UploadTab /> : <SearchTab />}
+          </motion.div>
+        </AnimatePresence>
       </div>
       <Toaster richColors />
     </div>
