@@ -1,266 +1,203 @@
 ---
 name: design
-description: Generates or updates a DESIGN.md file that documents the project's architecture, key design decisions, data models, service boundaries, and API contracts. Trigger this skill when the user asks to "create a DESIGN.md", "document the architecture", or "explain the system design".
+description: Generates or updates a DESIGN.md file that documents the project's visual design system — colors, typography, spacing, component geometry, and design philosophy. Trigger this skill when the user asks to "create a DESIGN.md", "document the design system", "capture the visual language", or "describe the UI design".
 ---
 
 # Design Documentation Skill
 
-This skill produces a `DESIGN.md` file that captures the technical design of the project in one authoritative place.
+This skill produces a `DESIGN.md` file that captures the visual design language of the project in one authoritative place, following the format established by the [awesome-design-md](https://github.com/VoltAgent/awesome-design-md) collection.
 
 ## When to Use This Skill
 
 Trigger this skill when the user:
 
 - Asks to "create a DESIGN.md" or "write a design doc"
-- Wants to "document the architecture" or "explain how the system works"
-- Asks for an "architectural overview" or "system design summary"
-- Onboards contributors and needs a technical reference document
-- Prepares for a design review
+- Wants to "document the design system" or "capture the visual language"
+- Asks for a "UI overview" or "design principles summary"
+- Needs a reference document for maintaining visual consistency
+- Onboards a new designer or frontend engineer
 
 ## What to Include in DESIGN.md
 
 A good `DESIGN.md` covers:
 
-1. **Overview** — One paragraph explaining what the system does and why it exists.
-2. **Architecture Diagram** (ASCII or Mermaid) — Shows how the major components connect.
-3. **Component Breakdown** — Each major service, module, or layer with its responsibility.
-4. **Data Models** — Key database tables or schemas and their relationships.
-5. **API Contracts** — Endpoints, request/response shapes, and notable constraints.
-6. **Key Design Decisions** — The non-obvious choices made and the reasons behind them (ADR-style).
-7. **External Dependencies** — Third-party services, why they were chosen, and what they own.
-8. **Invariants & Constraints** — Things that must always be true (e.g. vector dimension must match embedding model).
+1. **Design Philosophy** — The core ethos and visual identity in one paragraph. What is the brand expression? What feeling should the UI convey?
+2. **Visual Foundation** — Color palette (hex values), overall aesthetic (minimalist, vibrant, etc.), and any defining motifs.
+3. **Typography** — Font families, weights used, size scale, line-height values.
+4. **Color System** — Named semantic roles (primary, muted, background, focus, etc.) with exact hex values.
+5. **Layout & Spacing** — Base spacing unit, section padding, content width, density approach.
+6. **Component Geometry** — Border radius rules, shadow policy, shape vocabulary (pill, card, etc.).
+7. **Distinctive Elements** — Anything that makes this design system immediately recognisable.
 
 ## How to Generate DESIGN.md
 
-### Step 1: Read the Codebase
+### Step 1: Read the Frontend Code
 
 Before writing anything, read:
 
-- Entry point (e.g. `src/index.ts`, `src/app.ts`, `main.py`)
-- Route / controller files
-- Service layer files
-- Database schema files
-- Environment / configuration files
-- Existing `README.md`
+- CSS/Tailwind config (`tailwind.config.js`, `tailwind.config.ts`, `theme/`)
+- Global stylesheets (`src/index.css`, `styles/globals.css`, `app/globals.css`)
+- UI component files (`src/components/ui/`, `components/`)
+- Root layout or app entry (`src/App.tsx`, `app/layout.tsx`, `pages/_app.tsx`)
+- Any design token files (`tokens.json`, `theme.ts`)
 
-Use `Glob` and `Read` to gather this context. Do **not** guess—read the actual files.
+Use `Glob` to find these files and `Read` to examine them. Do **not** guess hex values or font names—extract them from the actual code.
 
-### Step 2: Identify the Layers
+### Step 2: Extract the Design Tokens
 
-Map what you find into layers:
+From the files you read, collect:
 
-| Layer | What to look for |
-|-------|-----------------|
-| HTTP / API | Route definitions, middleware, request validation |
-| Service | Business logic, orchestration between storage and external APIs |
-| Storage | Database schema, ORM queries, migrations |
-| External APIs | Third-party SDK calls (AI models, object storage, vector DBs) |
-| Frontend | UI components, API client, state management |
+| Token type | Where to find it |
+|------------|-----------------|
+| Colors | `tailwind.config`, CSS variables (`--color-*`, `--background`, etc.) |
+| Typography | `@font-face`, `fontFamily` in Tailwind config, repeated className patterns |
+| Spacing | `spacing` in Tailwind config, repeated `gap-*` / `p-*` / `m-*` patterns |
+| Border radius | `borderRadius` in Tailwind config, repeated `rounded-*` patterns |
+| Shadows | `boxShadow` in Tailwind config, repeated `shadow-*` patterns |
 
-### Step 3: Surface Design Decisions
+### Step 3: Identify the Design Philosophy
 
 Look for:
 
-- Comments that say "why" not "what"
-- Configuration constants with magic values (e.g. embedding dimensions)
-- Error handling strategies (custom error classes, status codes)
-- Any workarounds or normalisation steps (e.g. converting HEIC → PNG before embedding)
+- A dominant aesthetic — is it minimal/monochrome, colorful, corporate, playful?
+- Recurring visual motifs (pill buttons, card grids, full-bleed sections)
+- Brand typography choices (a distinctive display font signals brand intent)
+- Spacing philosophy — tight/dense or open/airy?
 
 ### Step 4: Write DESIGN.md
 
-Write the file at the repo root. Use the template below as a starting point, filling in project-specific details from what you read.
+Write the file at the repo root. Use the template below as a starting point, filling in project-specific values from what you read.
 
 ```markdown
 # Design
 
-## Overview
+## Design Philosophy
 
-[One paragraph: what the system does, who uses it, the core value.]
+[One paragraph: the core aesthetic, the brand expression, what feeling the UI should convey.]
 
-## Architecture
+## Visual Foundation
 
-\`\`\`
-[ASCII or Mermaid diagram of components and data flow]
-\`\`\`
+[Describe the overall visual approach — monochrome, colorful, minimalist, etc.]
 
-## Components
+**Distinctive elements:**
+- [Font choice and why it matters]
+- [Shape vocabulary — pill buttons, card radius, etc.]
+- [Shadow / depth policy]
 
-### [Component Name]
-- **Location**: `src/...`
-- **Responsibility**: ...
+## Typography
 
-(repeat for each major component)
+| Role | Font | Weight(s) | Size range | Line-height |
+|------|------|-----------|------------|-------------|
+| Display | ... | ... | ... | ... |
+| Body | ... | ... | ... | ... |
+| Mono | ... | ... | ... | ... |
 
-## Data Model
+## Color System
 
-### [Table / Schema Name]
-| Column | Type | Notes |
-|--------|------|-------|
-| ...    | ...  | ...   |
+| Name | Hex | Role |
+|------|-----|------|
+| ... | `#...` | ... |
 
-## API
+## Layout & Spacing
 
-| Method | Path | Description |
-|--------|------|-------------|
-| ...    | ...  | ...         |
+- **Base unit**: [e.g. 4px or 8px]
+- **Content max-width**: [e.g. 1280px]
+- **Section vertical padding**: [e.g. 64–96px]
+- **Density**: [tight / balanced / airy]
 
-## Key Design Decisions
+## Component Geometry
 
-### [Decision Title]
-**Context**: ...
-**Decision**: ...
-**Consequences**: ...
+- **Interactive elements** (buttons, badges): [e.g. 9999px radius — full pill]
+- **Containers** (cards, modals): [e.g. 12px radius]
+- **Shadows**: [e.g. none — depth via border and background shift only]
 
-(repeat for each significant decision)
+## Distinctive Elements
 
-## External Dependencies
-
-| Service | Purpose | SDK / Client |
-|---------|---------|--------------|
-| ...     | ...     | ...          |
-
-## Invariants
-
-- ...
-\`\`\`
+- [Element 1 — what it is and why it's distinctive]
+- [Element 2]
+```
 
 ### Step 5: Verify and Commit
 
 After writing:
 
-1. Re-read the generated `DESIGN.md` and check it against the actual code.
-2. Confirm every component, table, and endpoint mentioned actually exists.
+1. Cross-check every hex value and font name against the source files.
+2. Confirm every radius and spacing value matches the Tailwind config or CSS variables.
 3. Commit: `docs: add DESIGN.md`
 
 ## Quality Checklist
 
 Before finishing, confirm:
 
-- [ ] Every top-level `src/` directory has a corresponding component entry
-- [ ] All database tables in the schema are documented
-- [ ] All HTTP routes are listed in the API section
-- [ ] External services are listed with their purpose
-- [ ] At least one design decision is documented
-- [ ] No fabricated details—everything is traceable to the source code
+- [ ] Every color has an exact hex value (no guesses)
+- [ ] Font family names match what is actually imported or configured
+- [ ] Border radius values are drawn from the config, not invented
+- [ ] The design philosophy section reads like a human wrote it, not a spec list
+- [ ] No fabricated details — everything is traceable to source files
 
 ## Example: auction-embedding
 
-Below is a reference DESIGN.md for the `auction-embedding` project that lives in this repository. Use it as a concrete example of the expected output quality.
+Below is a reference `DESIGN.md` for the `auction-embedding` project that lives in this repository.
 
 ---
 
 # Design
 
-## Overview
+## Design Philosophy
 
-`auction-embedding` is a Hono API that lets clients upload images, embed them with Google's Gemini Embedding model, store the vectors in Qdrant, and search for visually similar images. A React frontend provides upload and search UI.
+The interface embraces **calm utility** — a clean, low-friction tool for uploading and searching images. The UI stays out of the way: neutral grays create a professional backdrop that lets image thumbnails become the visual focus. There are no decorative flourishes; every element earns its place by serving a task.
 
-## Architecture
+## Visual Foundation
 
-```
-Client (browser / curl)
-        │
-        ▼
-  Hono HTTP API  (src/app.ts)
-  ┌──────────────────────────────┐
-  │  POST /images                │──► S3-compatible storage (MinIO / R2)
-  │  GET  /images/:id            │──► PostgreSQL  (image metadata)
-  │  DELETE /images/:id          │──► Qdrant      (embedding vectors)
-  │  POST /images/:id/reindex    │
-  │  POST /search/image          │──► Gemini Embedding API
-  └──────────────────────────────┘
-        ▲
-        │
-  React Frontend (frontend/)
-```
+The design uses a light neutral canvas with subtle gray borders and muted text hierarchy. The single accent color (indigo/violet) is reserved for primary actions, creating clear visual hierarchy without noise.
 
-## Components
+**Distinctive elements:**
+- `Inter` as the system font — legible and neutral
+- Consistent `rounded-lg` (8px) radius on cards and inputs; `rounded-md` on buttons
+- Minimal shadows — `shadow-sm` at most, primarily using border for container definition
+- Tab-based navigation to keep upload and search workflows cleanly separated
 
-### Routes (`src/routes/`)
-Thin HTTP handlers that parse multipart form data, delegate to services, and shape JSON responses.
+## Typography
 
-### EmbeddingService (`src/services/embeddings.ts`)
-Wraps the `@google/genai` SDK. Encodes image bytes as base64, calls `embedContent`, and validates the returned vector dimension matches `EMBEDDING_DIMENSIONS`.
+| Role | Font | Weight(s) | Notes |
+|------|------|-----------|-------|
+| UI / Body | Inter (system fallback) | 400, 500, 600 | Tailwind default stack |
+| Mono | ui-monospace, SFMono | 400 | Code / ID display |
 
-### QdrantService (`src/services/vector-db.ts`)
-Wraps `@qdrant/js-client-rest`. Lazily creates the collection on first use (with a mutex-style promise to avoid races). Exposes `upsertImageVector`, `deleteImageVector`, and `searchSimilar`.
+## Color System
 
-### ImageMetadataService (`src/services/image-metadata.ts`)
-Reads and writes image rows in PostgreSQL via Drizzle ORM.
+Sourced from Tailwind CSS defaults and shadcn/ui CSS variables:
 
-### StorageService (`src/services/storage.ts`)
-Uploads objects to and generates presigned URLs from an S3-compatible bucket.
+| Name | Hex (light) | Role |
+|------|-------------|------|
+| Background | `#ffffff` | Page background |
+| Card | `#ffffff` | Card surface |
+| Border | `#e5e7eb` | Dividers, input borders |
+| Muted | `#f3f4f6` | Secondary backgrounds, badges |
+| Muted foreground | `#6b7280` | Placeholder, secondary text |
+| Foreground | `#111827` | Primary text |
+| Primary | `#4f46e5` | CTA buttons, active tabs |
+| Primary foreground | `#ffffff` | Text on primary |
+| Destructive | `#ef4444` | Delete actions |
 
-### Database Schema (`src/db/schema.ts`)
-Drizzle schema for the `images` table in PostgreSQL.
+## Layout & Spacing
 
-### Frontend (`frontend/`)
-Vite + React app. Two tabs: upload (drag-and-drop) and search (query by image). Uses TanStack Query for data fetching.
+- **Base unit**: 4px (Tailwind default)
+- **Page padding**: `px-4` → `px-6` (mobile → desktop)
+- **Max content width**: `max-w-4xl` (896px) centered
+- **Card gap**: `gap-4` (16px) in image grids
+- **Density**: balanced — enough whitespace to breathe, tight enough to show many thumbnails
 
-## Data Model
+## Component Geometry
 
-### `images`
+- **Buttons**: `rounded-md` (6px)
+- **Cards / panels**: `rounded-lg` (8px)
+- **Input fields**: `rounded-md` (6px)
+- **Image thumbnails**: `rounded-md` (6px) with `object-cover` fill
+- **Shadows**: `shadow-sm` on cards; no shadows on interactive elements — borders carry the weight
 
-| Column             | Type        | Notes                                      |
-|--------------------|-------------|--------------------------------------------|
-| `id`               | uuid PK     | Auto-generated                             |
-| `original_filename`| text        |                                            |
-| `mime_type`        | text        |                                            |
-| `file_size`        | integer     | Bytes                                      |
-| `width` / `height` | integer     | Nullable; populated during upload          |
-| `storage_key`      | text unique | Object key in S3 bucket                    |
-| `public_url`       | text        | Path-style reference; presigned at query time |
-| `embedding_model`  | text        | Model name used for this image's embedding |
-| `embedding_dim`    | integer     | Dimension of the stored vector             |
-| `status`           | text        | `uploaded` → `embedding` → `indexed` / `failed` |
-| `tags`             | jsonb       | Arbitrary client-supplied metadata         |
-| `created_at`       | timestamptz |                                            |
-| `updated_at`       | timestamptz |                                            |
+## Distinctive Elements
 
-## API
-
-| Method | Path                      | Description                              |
-|--------|---------------------------|------------------------------------------|
-| GET    | `/health`                 | Liveness check                           |
-| POST   | `/images`                 | Upload image + optional metadata JSON    |
-| GET    | `/images/:id`             | Fetch image metadata + presigned URL     |
-| DELETE | `/images/:id`             | Delete image from storage, DB, and Qdrant|
-| POST   | `/images/:id/reindex`     | Re-embed from stored object              |
-| POST   | `/search/image`           | Find similar images by query image       |
-
-## Key Design Decisions
-
-### Image normalisation before embedding
-**Context**: Gemini image embeddings only accept PNG and JPEG. Clients may upload WebP or HEIC.  
-**Decision**: Decode WebP and HEIC to PNG via `sharp` before sending to the embedding API.  
-**Consequences**: HEIC support requires a `sharp` build with `libheif` (not always present on Linux).
-
-### Cosine similarity in Qdrant
-**Context**: Images with similar visual content should score high regardless of vector magnitude.  
-**Decision**: Create the Qdrant collection with `distance: Cosine`.  
-**Consequences**: Scores are in `[-1, 1]`; returned as-is in search results.
-
-### Presigned URLs instead of public bucket
-**Context**: Keeping the bucket private avoids accidental public exposure.  
-**Decision**: `public_url` stored in Postgres is a logical path reference; actual download URLs are presigned at query time with a configurable TTL (`S3_PRESIGN_EXPIRES_SECONDS`, default 3600 s).  
-**Consequences**: URLs in API responses expire. Clients must not cache them beyond the TTL.
-
-### Lazy Qdrant collection creation
-**Context**: Requiring operators to pre-create the collection adds setup friction.  
-**Decision**: `QdrantService` checks for collection existence and creates it on the first operation, using a promise to prevent duplicate create races.  
-**Consequences**: First request after a cold start is slightly slower; races between concurrent first-requests are handled gracefully by re-checking existence after a create error.
-
-## External Dependencies
-
-| Service              | Purpose                        | SDK / Client                  |
-|----------------------|--------------------------------|-------------------------------|
-| Google Gemini        | Image embedding                | `@google/genai`               |
-| Qdrant               | Vector storage and ANN search  | `@qdrant/js-client-rest`      |
-| PostgreSQL           | Image metadata                 | Drizzle ORM + `postgres` driver|
-| S3-compatible storage| Binary image storage           | `@aws-sdk/client-s3`          |
-
-## Invariants
-
-- The vector dimension stored in Qdrant must equal `EMBEDDING_DIMENSIONS` (defined in `src/constants/embedding.ts`). A mismatch throws an `EMBEDDING_FAILED` error immediately.
-- An image row must reach `status = "indexed"` before it appears in search results (`queryNearestByVector` filters on `eq(images.status, "indexed")`).
-- `storage_key` is unique; uploading the same file twice produces two distinct rows with distinct keys.
+- **Tab layout** — Upload and Search live in sibling tabs, keeping the mental model simple: you either add images or find them.
+- **Score badge** — Search results overlay a cosine similarity score badge on each thumbnail, making relevance immediately visible without a separate list view.
+- **Drag-and-drop upload zone** — The upload tab's primary affordance is a large drop target, signalling that the preferred interaction is drag-and-drop rather than a file picker button.
