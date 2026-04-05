@@ -13,7 +13,8 @@
     "fmt": "oxfmt",
     "fmt:check": "oxfmt --check",
     "lint": "oxlint",
-    "lint:fix": "oxlint --fix"
+    "lint:fix": "oxlint --fix",
+    "seed:unsplash": "bun run scripts/seed-unsplash.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1013.0",
