@@ -1,15 +1,12 @@
 import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import { Search, X, Loader2, ImageOff } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { useSearchByImage, useGetImage, useDeleteImage } from "@/lib/queries";
 import type { SearchMatch } from "@/types";
 import { cn } from "@/lib/utils";
 import { ImageCard } from "@/components/ImageCard";
 import { ImageDetailDialog } from "@/components/ImageDetailDialog";
-import { motion, AnimatePresence } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 
 export function SearchTab() {
   const [file, setFile] = useState<File | null>(null);
@@ -89,13 +86,13 @@ export function SearchTab() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Drop Zone */}
       <div
         className={cn(
-          "relative border-2 border-dashed rounded-lg p-8 text-center transition-colors",
-          dragging ? "border-primary bg-primary/5" : "border-muted-foreground/25",
-          !file && "cursor-pointer hover:border-primary/50"
+          "relative rounded-xl border p-10 text-center",
+          dragging ? "border-black bg-[#fafafa]" : "border-[#e5e5e5]",
+          !file && "cursor-pointer"
         )}
         onDrop={handleDrop}
         onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
@@ -114,36 +111,36 @@ export function SearchTab() {
             <motion.div
               key="preview"
               className="relative inline-block"
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.2 }}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
             >
               <img
                 src={preview}
                 alt="Query"
-                className="max-h-48 max-w-full rounded-md object-contain mx-auto"
+                className="max-h-48 max-w-full rounded-xl object-contain mx-auto"
               />
               <button
                 type="button"
-                className="absolute -top-2 -right-2 rounded-full bg-destructive text-destructive-foreground p-0.5 hover:bg-destructive/90"
+                className="absolute -top-2 -right-2 rounded-full bg-[#262626] text-white p-1"
                 onClick={(e) => { e.stopPropagation(); handleClear(); }}
               >
-                <X className="h-4 w-4" />
+                <X className="h-3 w-3" />
               </button>
             </motion.div>
           ) : (
             <motion.div
               key="placeholder"
-              className="flex flex-col items-center gap-2 text-muted-foreground"
+              className="flex flex-col items-center gap-2 text-[#737373]"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
+              transition={{ duration: 0.15 }}
             >
-              <Search className="h-10 w-10" />
-              <p className="text-sm font-medium">Drop a query image here or click to select</p>
-              <p className="text-xs">JPEG, PNG, WebP, HEIC — max 10 MB</p>
+              <Search className="h-8 w-8" />
+              <p className="text-sm font-medium text-[#262626]">Drop a query image here or click to select</p>
+              <p className="text-xs text-[#a3a3a3]">JPEG, PNG, WebP, HEIC — max 10 MB</p>
             </motion.div>
           )}
         </AnimatePresence>
@@ -152,8 +149,10 @@ export function SearchTab() {
       {/* Controls */}
       <div className="flex gap-3 items-end">
         <div className="space-y-1.5 w-32 shrink-0">
-          <Label htmlFor="topk-input">Top K results</Label>
-          <Input
+          <label htmlFor="topk-input" className="text-sm font-medium text-[#262626]">
+            Top K
+          </label>
+          <input
             id="topk-input"
             type="number"
             min={1}
@@ -161,21 +160,26 @@ export function SearchTab() {
             value={topK}
             onChange={(e) => setTopK(e.target.value)}
             disabled={search.isPending}
+            className="w-full rounded-full border border-[#e5e5e5] bg-white px-4 py-2.5 text-sm text-black focus:outline-none focus:ring-2 focus:ring-[#3b82f6]/50 disabled:opacity-50"
           />
         </div>
-        <Button onClick={handleSearch} disabled={!file || search.isPending} className="flex-1">
+        <button
+          onClick={handleSearch}
+          disabled={!file || search.isPending}
+          className="flex-1 rounded-full bg-black px-6 py-2.5 text-sm font-medium text-white disabled:opacity-40"
+        >
           {search.isPending ? (
-            <>
-              <Loader2 className="animate-spin" />
+            <span className="flex items-center justify-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
               Searching…
-            </>
+            </span>
           ) : (
-            <>
-              <Search />
+            <span className="flex items-center justify-center gap-2">
+              <Search className="h-4 w-4" />
               Search by Similarity
-            </>
+            </span>
           )}
-        </Button>
+        </button>
       </div>
 
       {/* Results */}
@@ -184,24 +188,24 @@ export function SearchTab() {
           results.length === 0 ? (
             <motion.div
               key="empty"
-              className="flex flex-col items-center justify-center py-12 text-muted-foreground gap-3"
+              className="flex flex-col items-center justify-center py-16 gap-3 text-[#737373]"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.25 }}
+              transition={{ duration: 0.2 }}
             >
-              <ImageOff className="h-12 w-12" />
+              <ImageOff className="h-10 w-10" />
               <p className="text-sm">No similar images found</p>
             </motion.div>
           ) : (
             <motion.div
               key="grid"
-              className="grid grid-cols-2 sm:grid-cols-3 gap-4"
+              className="grid grid-cols-2 sm:grid-cols-3 gap-3"
               initial="hidden"
               animate="visible"
               exit="hidden"
               variants={{
-                visible: { transition: { staggerChildren: 0.06 } },
+                visible: { transition: { staggerChildren: 0.05 } },
                 hidden: {},
               }}
             >
@@ -209,10 +213,10 @@ export function SearchTab() {
                 <motion.div
                   key={match.id}
                   variants={{
-                    hidden: { opacity: 0, y: 16, scale: 0.97 },
-                    visible: { opacity: 1, y: 0, scale: 1 },
+                    hidden: { opacity: 0, y: 12 },
+                    visible: { opacity: 1, y: 0 },
                   }}
-                  transition={{ duration: 0.3, ease: "easeOut" }}
+                  transition={{ duration: 0.2 }}
                 >
                   <ImageCard
                     match={match}

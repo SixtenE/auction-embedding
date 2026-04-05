@@ -1,52 +1,57 @@
 import { useState } from "react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UploadTab } from "@/components/UploadTab";
 import { SearchTab } from "@/components/SearchTab";
 import { Toaster } from "sonner";
-import { motion, AnimatePresence } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 
 function App() {
   const [activeTab, setActiveTab] = useState("upload");
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container max-w-3xl py-8 px-4">
-        <motion.div
-          className="mb-8"
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-        >
-          <h1 className="text-3xl font-bold tracking-tight">Auction Embedding</h1>
-          <p className="text-muted-foreground mt-1">
+    <div className="min-h-screen bg-white">
+      <div className="mx-auto max-w-2xl px-6 py-16">
+        {/* Header */}
+        <div className="mb-12">
+          <h1 className="font-display text-3xl font-medium tracking-tight text-black leading-none">
+            Auction Embedding
+          </h1>
+          <p className="mt-2 text-sm text-[#737373]">
             Upload and search auction images by visual similarity
           </p>
-        </motion.div>
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <motion.div
-            initial={{ opacity: 0, y: -5 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: 0.15 }}
-          >
-            <TabsList className="mb-6">
-              <TabsTrigger value="upload">Upload</TabsTrigger>
-              <TabsTrigger value="search">Search</TabsTrigger>
-            </TabsList>
-          </motion.div>
-        </Tabs>
+        </div>
+
+        {/* Pill Tabs */}
+        <div className="mb-8 flex gap-2">
+          {(["upload", "search"] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={[
+                "rounded-full px-5 py-2 text-sm font-medium transition-none capitalize",
+                activeTab === tab
+                  ? "bg-[#e5e5e5] text-[#262626]"
+                  : "bg-transparent text-[#737373]",
+              ].join(" ")}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab Content */}
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -6 }}
-            transition={{ duration: 0.15 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.1 }}
           >
             {activeTab === "upload" ? <UploadTab /> : <SearchTab />}
           </motion.div>
         </AnimatePresence>
       </div>
-      <Toaster richColors />
+      <Toaster />
     </div>
   );
 }
